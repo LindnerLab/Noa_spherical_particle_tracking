@@ -10,7 +10,7 @@ clear all;
 
 % Read the whole image sequence
 image_folder = 'E:\Lars\Github\Noa_spherical_particle_tracking\RawData\';    %  Enter name of folder from which you want to upload pictures 
-verbose = false;                                         % If verbose is true, the script will create and save a figure of the particle finding
+verbose = true;                                         % If verbose is true, the script will create and save a figure of the particle finding
 
 folder = pwd;
 filenames = [dir(fullfile(image_folder, '*.tif'))];     % read all images with specified extention
@@ -28,23 +28,25 @@ Img_size = size(Img_temp);                              % Determine the size of 
 
 Img = zeros(Img_size(1),Img_size(2), total_images);     % Pre-allocate memory for the cropped images (is faster than allocating space when needed.
 Img_inv = zeros([size(Img_temp), total_images]);        % Pre-allocate memory for the inverted images
+Img_bg = zeros([size(Img_temp), total_images]);         % Pre-allocate memory for the inverted images
 clear Img_temp Img_size                                 % Delete the temporary image, as it is no longer needed
 
 for n = 1:total_images
     full_name = fullfile(image_folder, filenames(n).name);      % specify images names with full path and extension
-    Img(:,:,n) = double(imcrop(imread(full_name),rect));        % Import, crop and convert the image to double
+    Img(:,:,n) = double(imcrop(imread(full_name),rect));        % Import, crop, convert the image to double and invert it
 end
 
 % calculate average image for background removal      
-average_fig = mean(Img,3);                              % Take the average over all the images (averages values of all pixels with the same z-index)
 
 % Subtract background and invert image
-Img_inv1 = 2^16 - Img + average_fig - 1;
+Img_inv = 2^16 - Img - 1;
+average_fig = mean(Img_inv,3);                          % Take the average over all the images (averages values of all pixels with the same z-index)
+Img_bg = Img_inv - average_fig;                         % Subtract the background signal
 
 % pass images through a filter, find circles and save x,y coordinates to *.txt files
 for n = 1:total_images    
     % Find circles
-    Img_bpass = bpass(Img_inv(:,:,n),0.5,30);           % filter - smoothing and subtracting the background (picture, 1, need to adjust to fit with particle diameter)
+    Img_bpass = bpass(Img_bg(:,:,n),0.5,30);            % filter - smoothing and subtracting the background (picture, 1, need to adjust to fit with particle diameter)
     [allcenters1, radii1, ~] = imfindcircles(Img_bpass,[7,12]); %finds the particles with defined centers - the particles in the focus plane. [ radii range ]
     
     baseFileName = sprintf('%03d',n);                   % Create string with image number padded with zeros
@@ -60,7 +62,7 @@ for n = 1:total_images
 
         % Plot inverted and filtered image (with background removed)
         subplot(2,1,2)
-        colormap('gray'); imagesc(Img_bpass); % display image
+        colormap('gray'); imagesc(uint16(Img_bpass)); % display image
         set(gcf, 'Visible', 'off') %dont show figure while code is running
         title('Detected particles')
 
