@@ -9,8 +9,9 @@ close all;
 clear all;
 
 % Read the whole image sequence
-image_folder = 'E:\Lars\Github\Noa_spherical_particle_tracking\RawData\';    %  Enter name of folder from which you want to upload pictures 
-verbose = true;                                         % If verbose is true, the script will create and save a figure of the particle finding
+image_folder = 'C:\Users\larsk\Documents\GitHub\Noa_spherical_particle_tracking\RawData\';    %  Enter name of folder from which you want to upload pictures 
+verbose = false;                                         % If verbose is true, the script will create and save a figure of the particle finding
+r = 10;
 
 folder = pwd;
 filenames = [dir(fullfile(image_folder, '*.tif'))];     % read all images with specified extention
@@ -39,7 +40,8 @@ end
 % calculate average image for background removal      
 
 % Subtract background and invert image
-Img_inv = 2^16 - Img - 1;
+Img_inv = 2^16 - Img + 1 - 5E4;
+Img_inv(Img_inv < 0) = 0;
 average_fig = mean(Img_inv,3);                          % Take the average over all the images (averages values of all pixels with the same z-index)
 Img_bg = Img_inv - average_fig;                         % Subtract the background signal
 
@@ -47,9 +49,9 @@ Img_bg = Img_inv - average_fig;                         % Subtract the backgroun
 for n = 1:total_images    
     % Find circles
     Img_bpass = bpass(Img_bg(:,:,n),0.5,30);            % filter - smoothing and subtracting the background (picture, 1, need to adjust to fit with particle diameter)
-    [allcenters1, radii1, ~] = imfindcircles(Img_bpass,[7,12]); %finds the particles with defined centers - the particles in the focus plane. [ radii range ]
-    
-    baseFileName = sprintf('%03d',n);                   % Create string with image number padded with zeros
+    [allcenters1] = FindParticlesConvolution(Img_bpass(:,:),10,12E3);
+
+    baseFileName = sprintf('%03d',n);                   % Create string with image number padded with zeros   
     if verbose
         % Plot original image
         figure(n);
@@ -67,7 +69,7 @@ for n = 1:total_images
         title('Detected particles')
 
         % Indicate the found particles
-        viscircles(allcenters1,radii1, 'EdgeColor','r');    
+        viscircles(allcenters1,ones(size(allcenters1,1),1)*r, 'EdgeColor','r');    
     %             %%If there are 2 particle sizes in the video             
     %             [centers2, radii2, metric2] = imfindcircles(b,[40,60]); %finds the particles with defined centers - the particles in the focus plane. [ radii range ]
     %             allcenters2 = centers2(:,:);
@@ -81,7 +83,7 @@ for n = 1:total_images
     end
     
     % Save cropped images
-    fullFileName = fullfile('raw_images_crop',  [baseFileName,'.tif']);
+    fullFileName = fullfile(folder,'raw_images_crop',  [baseFileName,'.tif']);
     imwrite(uint16(Img(:,:,n)), fullFileName);
     
     % write the coordinates of the particles in each image to a seperate file
