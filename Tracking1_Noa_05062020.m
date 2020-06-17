@@ -1,6 +1,11 @@
-% This code is based on: http://site.physics.georgetown.edu/matlab/tutorial.html
-% and https://www.mathworks.com/help/images/ref/imfindcircles.html
-% The codes find circles for each fram of an image sequence
+% This code uses an convolutional method to determine the locations of
+% circular particles in an image, given an expected particle radius, r.
+% Particles can be separated from false positives by comparing any of the
+% 'regionprops' properties to a reference value and selecting only the
+% particles that have a property that is 'greater' or 'smaller' than the
+% reference 'Value'. Examples of properties are 'Area' and 'Eccentricity'.
+% More info can be found on https://www.mathworks.com/help/images/ref/regionprops.html
+% The codes find circles for each frame of an image sequence
 % Presenting the circles that are found in the center plane!
 % Saving the coordinates of each circle for each image in a .txt file
 
@@ -9,10 +14,29 @@ close all;
 clear all;
 
 % Read the whole image sequence
-image_folder = 'C:\Users\larsk\Documents\GitHub\Noa_spherical_particle_tracking\RawData\';    %  Enter name of folder from which you want to upload pictures 
-verbose = false;                                         % If verbose is true, the script will create and save a figure of the particle finding
-r = 10;
+image_folder = 'E:\Lars\Github\Noa_spherical_particle_tracking\RawData\';    %  Enter name of folder from which you want to upload pictures 
+verbose = true;                                         % If verbose is true, the script will create and save a figure of the particle finding
+r = 10;                                                 % Expected radius of the particles in pixels
 
+
+SelectionCriteria = struct('Property',[],'Value',[],'Criteria',[]);
+% The particle shouldn't be too small
+SelectionCriteria(1).Property = 'Area';
+SelectionCriteria(1).Value = pi*(0.8*r)^2;
+SelectionCriteria(1).Criteria = 'Greater';
+
+% The particle shouldn't be too large either
+SelectionCriteria(2).Property = 'Area';
+SelectionCriteria(2).Value = pi*(1.2*r)^2;
+SelectionCriteria(2).Criteria = 'Smaller';
+
+% The particle should be roughly round (0 is perfectly round, 1 is a line)
+SelectionCriteria(3).Property = 'Eccentricity';
+SelectionCriteria(3).Value = 0.4;
+SelectionCriteria(3).Criteria = 'Smaller';
+
+
+%% Below This No Input Are Required!
 folder = pwd;
 filenames = [dir(fullfile(image_folder, '*.tif'))];     % read all images with specified extention
 total_images = numel(filenames);                        % count total number of photos present in that folder
@@ -28,8 +52,6 @@ Img_temp = imread(full_name);                           % Read img need to indic
 Img_size = size(Img_temp);                              % Determine the size of the cropped image (needed for pre-allocating memory).
 
 Img = zeros(Img_size(1),Img_size(2), total_images);     % Pre-allocate memory for the cropped images (is faster than allocating space when needed.
-Img_inv = zeros([size(Img_temp), total_images]);        % Pre-allocate memory for the inverted images
-Img_bg = zeros([size(Img_temp), total_images]);         % Pre-allocate memory for the inverted images
 clear Img_temp Img_size                                 % Delete the temporary image, as it is no longer needed
 
 for n = 1:total_images
@@ -38,7 +60,6 @@ for n = 1:total_images
 end
 
 % calculate average image for background removal      
-
 % Subtract background and invert image
 Img_inv = 2^16 - Img + 1 - 5E4;
 Img_inv(Img_inv < 0) = 0;
@@ -49,7 +70,7 @@ Img_bg = Img_inv - average_fig;                         % Subtract the backgroun
 for n = 1:total_images    
     % Find circles
     Img_bpass = bpass(Img_bg(:,:,n),0.5,30);            % filter - smoothing and subtracting the background (picture, 1, need to adjust to fit with particle diameter)
-    [allcenters1] = FindParticlesConvolution(Img_bpass(:,:),10,12E3);
+    [allcenters1] = FindParticlesConvolution(Img_bpass,r,SelectionCriteria);
 
     baseFileName = sprintf('%03d',n);                   % Create string with image number padded with zeros   
     if verbose
@@ -69,7 +90,7 @@ for n = 1:total_images
         title('Detected particles')
 
         % Indicate the found particles
-        viscircles(allcenters1,ones(size(allcenters1,1),1)*r, 'EdgeColor','r');    
+        viscircles(allcenters1,ones(size(allcenters1,1),1)*r, 'EdgeColor','r','LineWidth',1);    
     %             %%If there are 2 particle sizes in the video             
     %             [centers2, radii2, metric2] = imfindcircles(b,[40,60]); %finds the particles with defined centers - the particles in the focus plane. [ radii range ]
     %             allcenters2 = centers2(:,:);
