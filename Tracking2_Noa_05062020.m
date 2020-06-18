@@ -27,7 +27,7 @@ v_all = zeros(nx,ny);
 
 
 % Read the whole image sequence
-file_folder = '\Users\bnoa5\OneDrive\Desktop\Particle_flow_analysis_Noa30032020\Results_analysis_June_2020\water-glycerol\80um_MPs\7ml_min\particles_coordinates';    %  Enter name of folder from which you want to upload pictures with full path
+file_folder = 'E:\Lars\Github\particles_coordinates';    %  Enter name of folder from which you want to upload pictures with full path
 folder = pwd;
 filenames = dir(fullfile(file_folder, '*.txt'));                               % read all images with specified extention
 total_files = numel(filenames);                                                % count total number of photos present in that folder

@@ -14,10 +14,10 @@ close all;
 clear all;
 
 % Read the whole image sequence
-image_folder = 'E:\Lars\Github\Noa_spherical_particle_tracking\RawData\';    %  Enter name of folder from which you want to upload pictures 
+image_folder = 'E:\Noa\S0004\';    %  Enter name of folder from which you want to upload pictures 
 verbose = true;                                         % If verbose is true, the script will create and save a figure of the particle finding
 r = 10;                                                 % Expected radius of the particles in pixels
-
+threshold = 0.2;                                        % Threshold for the binerization of the normalized convoluted image.
 
 SelectionCriteria = struct('Property',[],'Value',[],'Criteria',[]);
 % The particle shouldn't be too small
@@ -51,29 +51,32 @@ Img_temp = imread(full_name);                           % Read img need to indic
 [Img_temp, rect] = imcrop(Img_temp);                    % Manually crop the example image and save the crop
 Img_size = size(Img_temp);                              % Determine the size of the cropped image (needed for pre-allocating memory).
 
-Img = zeros(Img_size(1),Img_size(2), total_images);     % Pre-allocate memory for the cropped images (is faster than allocating space when needed.
+Img = zeros(Img_size(1)+100,Img_size(2)+100, total_images);     % Pre-allocate memory for the cropped images (is faster than allocating space when needed.
 clear Img_temp Img_size                                 % Delete the temporary image, as it is no longer needed
 
 for n = 1:total_images
     full_name = fullfile(image_folder, filenames(n).name);      % specify images names with full path and extension
-    Img(:,:,n) = double(imcrop(imread(full_name),rect));        % Import, crop, convert the image to double and invert it
+    Img_temp = double(imcrop(imread(full_name),rect));
+    Img(:,:,n) = padarray(Img_temp,[50 50],0,'both');        % Import, crop, convert the image to double and invert it
 end
 
 % calculate average image for background removal      
 % Subtract background and invert image
-Img_inv = 2^16 - Img + 1 - 5E4;
+Img_inv = 2^16 - Img + 1;
 Img_inv(Img_inv < 0) = 0;
 average_fig = mean(Img_inv,3);                          % Take the average over all the images (averages values of all pixels with the same z-index)
 Img_bg = Img_inv - average_fig;                         % Subtract the background signal
 
 % pass images through a filter, find circles and save x,y coordinates to *.txt files
-for n = 1:total_images    
+for n = 1:500%total_images    
     % Find circles
-    Img_bpass = bpass(Img_bg(:,:,n),0.5,30);            % filter - smoothing and subtracting the background (picture, 1, need to adjust to fit with particle diameter)
-    [allcenters1] = FindParticlesConvolution(Img_bpass,r,SelectionCriteria);
+    Img_bpass = bpass(Img_bg(:,:,n),1,50);            % filter - smoothing and subtracting the background (picture, 1, need to adjust to fit with particle diameter)
+    Img_bpass = Img_bpass - 8000;
+    Img_bpass(Img_bpass < 0) = 0;
+    [allcenters1] = FindParticlesConvolution(Img_bpass,r,SelectionCriteria, threshold, false);
 
     baseFileName = sprintf('%03d',n);                   % Create string with image number padded with zeros   
-    if verbose
+    if verbose && mod(n,10) == 0
         % Plot original image
         figure(n);
         subplot(2,1,1)

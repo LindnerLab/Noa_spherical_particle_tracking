@@ -1,7 +1,7 @@
-function [Pparticles] = FindParticlesConvolution(Img,r,SelectionCriteria)
+function [Pparticles] = FindParticlesConvolution(Img,r,SelectionCriteria, threshold, varargin)
 %FINDPARTICLESCONVOLUTION finds circular particles in pre-treated images.
-%   FindParticlesConvolution finds particles of radius r in image Img that
-%   meet all the requirements set in SelectionCriteria
+%   FindParticlesConvolution finds particles of radius 'r' in image 'Img' that
+%   meet all the requirements set in 'SelectionCriteria'
 %
 %   Outputs
 %       Pparticles - 2D-array where the first column denotes the
@@ -28,7 +28,21 @@ function [Pparticles] = FindParticlesConvolution(Img,r,SelectionCriteria)
 %               the reference value 'Value'. This function supports
 %               multiple selection criteria, where each selection criteria
 %               is a new entry in the struct.
+%
+%       verbose - (optional, default is false)
+%               Set to true if you want to be notified on abnormalities.
+%               This is usefull for debugging, but might be annoying if
+%               this function is called numerous times.
 
+%% Variable input arguments handling
+    Nvarargin = length(varargin);
+    if Nvarargin == 0
+        verbose = false;
+    elseif Nvarargin == 1
+        verbose = varargin{1};
+    end
+    
+%% Particle Finding    
     Img_size = size(Img);                           % Determine the size of the image, needed to determine the size of the mask (as they need to be equal in size).
     
     xCenter = r;                                    % X-position of the center of the object to look for. It is centered at (r,r), meaning that the peaks in the convoluted image will be at (x+r,y+r), instead of (x,y)!
@@ -45,8 +59,8 @@ function [Pparticles] = FindParticlesConvolution(Img,r,SelectionCriteria)
     Img_conv_fft = Img_fft.*mask_fft;               % Calculate the FT convolution of the image by multiplying the FT image and FT mask
     Img_conv = ifft2(Img_conv_fft);                 % Obtain the convoluted image by performing an 2D-inverse FFT
     Img_conv_norm = Img_conv./max(max(Img_conv));   % Normalize the image such that the maximum value will always be 1 (background removal in pretreatment makes sure that the lowest value is always 0)
-    Img_conv_bin = imbinarize(Img_conv_norm,0.5);   % Binarize the image, such that it can be used in regionprops
+    Img_conv_bin = imbinarize(Img_conv_norm,threshold);   % Binarize the image, such that it can be used in regionprops
       
-    Pparticles = ParticleSelection(Img_conv_bin, r, SelectionCriteria); % Determine if the found patches are particles according to the SelectionCriteria
+    Pparticles = ParticleSelection(Img_conv_bin, r, SelectionCriteria, verbose); % Determine if the found patches are particles according to the SelectionCriteria
 end
 

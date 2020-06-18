@@ -1,14 +1,18 @@
-function [Pparticles] = ParticleSelection(Img, r, SelectionCriteria)
+function [Pparticles] = ParticleSelection(Img, r, SelectionCriteria,verbose)
     Ncriteria = size(SelectionCriteria,2);                              % Determine the number of criteria given
     Centroids = table2array(regionprops('table',Img,'Centroid'));       % Determine the centroids of all potential particles found
     Nregions = size(Centroids,1);                                       % Determine the number of potential particles found
     
     if Ncriteria == 0
-        fprintf('No selection criteria were given.\n');
-        Pparticles = [];
+        if verbose
+            fprintf('No selection criteria were given, so all centroids are returned.\n');
+        end
+        Pparticles = Centroids;
         return
     elseif Nregions == 0
-        fprintf('No particles were found.\n');
+        if verbose
+            fprintf('No particles were found.\n');
+        end
         Pparticles = [];
         return
     end
@@ -44,7 +48,7 @@ function [Pparticles] = ParticleSelection(Img, r, SelectionCriteria)
     % shift has to be subtracted, which is done here.
     Pparticles = Centroids(logical(prod(Selection,1)),:) - r;
     
-    if isempty(Pparticles)
+    if isempty(Pparticles) && verbose
         fprintf('No particles met the requirements');
     end
 end
